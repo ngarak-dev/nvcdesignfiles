@@ -1,10 +1,10 @@
 <div class="max-w-8xl mx-auto p-6">
     @if (session()->has('message'))
-        <flux:callout variant="success" class="mb-4" icon="check-circle" heading="{{ session('message') }}" />
+    <flux:callout variant="success" class="mb-4" icon="check-circle" heading="{{ session('message') }}" />
     @endif
 
     @if (session()->has('error'))
-        <flux:callout variant="danger" class="mb-4" icon="x-circle" heading="{{ session('error') }}" />
+    <flux:callout variant="danger" class="mb-4" icon="x-circle" heading="{{ session('error') }}" />
     @endif
 
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
@@ -12,7 +12,7 @@
             <div class="flex items-center space-x-4">
                 <flux:heading size="lg">File Manager</flux:heading>
                 @if($folder)
-                    <span class="text-gray-500 dark:text-gray-400">/ {{ $folder }}</span>
+                <span class="text-gray-500 dark:text-gray-400">/ {{ $folder }}</span>
                 @endif
             </div>
             <div class="flex items-center gap-2">
@@ -37,27 +37,27 @@
                         placeholder="Search files ..." />
                 </div>
                 @if(count($selectedFiles) > 0)
-                    <flux:button wire:click="deleteSelected" variant="danger" icon="trash">
-                        Delete Selected ({{ count($selectedFiles) }})
-                    </flux:button>
+                <flux:button wire:click="deleteSelected" variant="danger" icon="trash">
+                    Delete Selected ({{ count($selectedFiles) }})
+                </flux:button>
                 @endif
             </div>
         </div>
 
         @if(count($folders) > 0)
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                @foreach($folders as $folderName)
-                <a href="?folder={{ $folder ? $folder . '/' : '' }}{{ $folderName }}"
-                    class="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200">
-                    <svg class="w-6 h-6 text-gray-500 dark:text-gray-400 mr-3" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <span class="text-gray-900 dark:text-white">{{ $folderName }}</span>
-                </a>
-                @endforeach
-            </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            @foreach($folders as $folderName)
+            <a href="?folder={{ $folder ? $folder . '/' : '' }}{{ $folderName }}"
+                class="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200">
+                <svg class="w-6 h-6 text-gray-500 dark:text-gray-400 mr-3" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span class="text-gray-900 dark:text-white">{{ $folderName }}</span>
+            </a>
+            @endforeach
+        </div>
         @endif
 
         <div class="overflow-x-auto">
@@ -78,6 +78,16 @@
                             <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                             @endif
                         </th>
+
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
+                            wire:click="sortBy('mime_type')">
+                            Type
+                            @if($sortField === 'mime_type')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </th>
+
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
                             wire:click="sortBy('size')">
@@ -131,6 +141,27 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            @php
+                                $mime = $file->mime_type;
+                                [$shortMime, $mimeColor] = match(true) {
+                                    str_contains($mime, 'photoshop') => ['PSD', 'purple'],
+                                    str_contains($mime, 'xml') => ['XML', 'blue'],
+                                    str_contains($mime, 'illustrator') => ['AI', 'orange'],
+                                    str_contains($mime, 'pdf') => ['PDF', 'red'],
+                                    str_contains($mime, 'zip') => ['ZIP', 'indigo'],
+                                    str_contains($mime, 'rar') => ['RAR', 'indigo'],
+                                    str_contains($mime, 'mp4') => ['MP4', 'emerald'],
+                                    str_contains($mime, 'mp3') => ['MP3', 'sky'],
+                                    str_contains($mime, 'jpeg') => ['JPEG', 'cyan'],
+                                    str_contains($mime, 'png') => ['PNG', 'cyan'],
+                                    str_contains($mime, 'gif') => ['GIF', 'cyan'],
+                                    str_contains($mime, 'svg') => ['SVG', 'cyan'],
+                                    default => [$mime, 'zinc']
+                                };
+                            @endphp
+                            <flux:badge color="{{ $mimeColor }}" size="sm">{{ $shortMime }}</flux:badge>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {{ $file->formatted_size }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -141,14 +172,13 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
-                                <button wire:click="download({{ $file->id }})"
-                                    class="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:outline-none focus:underline transition-colors duration-200">
+                                <flux:button variant="primary" class="mr-2" wire:click="download({{ $file->id }})">
                                     Download
-                                </button>
-                                <button wire:click="delete({{ $file->id }})"
-                                    class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 focus:outline-none focus:underline transition-colors duration-200">
-                                    Delete
-                                </button>
+                                </flux:button>
+
+                                <flux:modal.trigger name="delete-file" wire:click="$set('deleteFile', {{ $file }})">
+                                    <flux:button variant="danger">Delete</flux:button>
+                                </flux:modal.trigger>
                             </div>
                         </td>
                     </tr>
@@ -176,33 +206,33 @@
             </div>
 
             <form wire:submit.prevent="sendToTelegram" class="space-y-4" enctype="multipart/form-data">
-                <flux:input type="file" wire:model="file" label="File"/>
+                <flux:input type="file" wire:model="file" label="File" />
 
                 <flux:input type="text" wire:model="name" label="File Name" />
 
                 <div class="flex justify-end space-x-3 mt-6">
 
-                    @if($uploadProgress > 0 && $uploadProgress < 100)
-                        <flux:text variant="subtle">Uploading... {{ $uploadProgress }}%</flux:text>
-                    @endif
+                    @if($uploadProgress > 0 && $uploadProgress < 100) <flux:text variant="subtle">Uploading... {{
+                        $uploadProgress }}%</flux:text>
+                        @endif
 
-                    @if($uploadError)
+                        @if($uploadError)
                         <flux:callout variant="danger" icon="x-circle" heading="{{ $uploadError }}" />
-                    @endif
+                        @endif
 
-                    @error('file')
+                        @error('file')
                         <flux:callout variant="danger" icon="x-circle" heading="{{ $message }}" />
-                    @enderror
+                        @enderror
 
-                    <div class="flex gap-2">
-                        <flux:spacer />
+                        <div class="flex gap-2">
+                            <flux:spacer />
 
-                        <flux:modal.close>
-                            <flux:button variant="ghost">Cancel</flux:button>
-                        </flux:modal.close>
+                            <flux:modal.close>
+                                <flux:button variant="ghost">Cancel</flux:button>
+                            </flux:modal.close>
 
-                        <flux:button type="submit" variant="primary">Upload</flux:button>
-                    </div>
+                            <flux:button type="submit" variant="primary">Upload</flux:button>
+                        </div>
                 </div>
             </form>
         </div>
@@ -229,6 +259,36 @@
                     <flux:button type="submit" variant="primary">Create Folder</flux:button>
                 </div>
             </form>
+        </div>
+    </flux:modal>
+
+    <!-- Delete File Modal -->
+    <flux:modal name="delete-file" class="md:min-w-2xl">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Delete File</flux:heading>
+            </div>
+
+            <flux:text>
+                <p>Are you sure you want to delete this file ?</p>
+                <span class="font-bold text-red-500">{{ $deleteFile['name'] ?? 'Unknown' }}</span>
+            </flux:text>
+
+            <div class="flex gap-2">
+                <flux:spacer />
+
+                <flux:modal.close>
+                    <flux:button variant="ghost">Cancel</flux:button>
+                </flux:modal.close>
+
+                @if($deletingFile)
+                    <flux:button variant="danger" disabled>
+                        Deleting...
+                    </flux:button>
+                @else
+                    <flux:button variant="danger" wire:click="delete({{ $deleteFile['id'] ?? 0 }})">Delete</flux:button>
+                @endif
+            </div>
         </div>
     </flux:modal>
 

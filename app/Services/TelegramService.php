@@ -126,7 +126,7 @@ class TelegramService
         }
     }
 
-    public function deleteFile($fileId)
+    public function deleteFile($messageId, $fileId)
     {
         try {
             $this->checkRateLimit();
@@ -134,14 +134,15 @@ class TelegramService
             $response = Http::timeout(10)
                 ->post("{$this->baseUrl}/deleteMessage", [
                     'chat_id' => $this->chatId,
-                    'message_id' => $fileId,
+                    'message_id' => $messageId,
                 ]);
 
             if (!$response->successful()) {
                 Log::error('Telegram delete failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'file_id' => $fileId
+                    'file_id' => $fileId,
+                    'message_id' => $messageId
                 ]);
                 throw new Exception('Failed to delete file from Telegram');
             }

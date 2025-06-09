@@ -12,8 +12,6 @@ use Illuminate\Support\Str;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Log;
 use Exception;
-use Illuminate\Log\Logger;
-use Flux\Flux;
 
 class FileManager extends Component
 {
@@ -27,14 +25,11 @@ class FileManager extends Component
     public $sortField = 'created_at';
     public $sortDirection = 'desc';
     public $selectedFiles = [];
-    public $showUploadModal = false;
-    public $showDeleteModal = false;
-    public $showFolderModal = false;
     public $newFolderName = '';
-    public $isPublic = false;
-    public $expiresAt = null;
     public $uploadProgress = 0;
     public $uploadError = null;
+    public $deleteFile = null;
+    public $deletingFile = false;
 
     protected $listeners = ['refreshFiles' => '$refresh'];
 
@@ -50,11 +45,11 @@ class FileManager extends Component
         $this->folder = request()->query('folder', '');
     }
 
-    public function updatedFile()
-    {
-        $this->uploadError = null;
-        $this->uploadProgress = 0;
-    }
+    // public function updatedFile()
+    // {
+    //     $this->uploadError = null;
+    //     $this->uploadProgress = 0;
+    // }
 
     public function sendToTelegram()
     {
@@ -124,7 +119,6 @@ class FileManager extends Component
             );
 
             // Log::info('Telegram response', ['response' => $responseData]);
-
             $this->uploadProgress = 70;
 
             if (!$responseData) {
@@ -135,7 +129,7 @@ class FileManager extends Component
 
             // Create file record
             File::create([
-                'name' => $this->file->getClientOriginalName(),
+                'name' => $this->name,
                 'file_id' => $responseData['document']['file_id'],
                 'file_unique_id' => $responseData['document']['file_unique_id'],
                 'size' => $this->file->getSize(),
@@ -146,6 +140,7 @@ class FileManager extends Component
                 'user_id' => Auth::user()->id,
                 'metadata' => [
                     'caption' => $this->name,
+                    'original_name' => $this->file->getClientOriginalName(),
                 ],
             ]);
 
@@ -154,7 +149,7 @@ class FileManager extends Component
             // Clean up temp file
             Storage::delete($path);
 
-            $this->reset(['file', 'name', 'showUploadModal']);
+            $this->reset(['file', 'name']);
             session()->flash('message', 'File uploaded successfully');
             $this->modal('upload-file')->close();
         }
@@ -204,10 +199,15 @@ class FileManager extends Component
 
     public function delete($id)
     {
+        $this->deletingFile = true;
         $file = File::findOrFail($id);
+        $this->telegramService->deleteFile($file->message_id, $file->file_id);
+        Log::info('File deleted successfully : ' . $file->name);
         $file->delete();
-        //TODO: Delete file from Telegram
+
+        $this->modal('delete-file')->close();
         session()->flash('message', 'File deleted successfully.');
+        $this->deletingFile = false;
     }
 
     public function createFolder()
@@ -220,7 +220,7 @@ class FileManager extends Component
         $folderPath = 'folders/' . $this->folder . '/' . $this->newFolderName;
         Storage::put($folderPath . '/.folder', '');
 
-        $this->reset('newFolderName', 'showFolderModal');
+        $this->reset('newFolderName');
         session()->flash('message', 'Folder created successfully.');
         $this->modal('new-folder')->close();
     }
@@ -246,9 +246,15 @@ class FileManager extends Component
 
     public function deleteSelected()
     {
-        //TODO: Delete files from Telegram
-        File::whereIn('id', $this->selectedFiles)->delete();
+        $files = File::whereIn('id', $this->selectedFiles)->get();
+        foreach ($files as $file) {
+            $this->telegramService->deleteFile($file->message_id, $file->file_id);
+            Log::info('File deleted successfully : ' . $file->name);
+            $file->delete();
+        }
+
         $this->selectedFiles = [];
+        $this->modal('delete-file')->close();
         session()->flash('message', 'Selected files deleted successfully.');
     }
 
