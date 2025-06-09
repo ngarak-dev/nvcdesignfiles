@@ -91,11 +91,21 @@
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
                             wire:click="sortBy('size')">
-                            Size
-                            @if($sortField === 'size')
+                            Folder
+                            @if($sortField === 'folder')
                             <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                             @endif
                         </th>
+
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
+                            wire:click="sortBy('size')">
+                            Size
+                            @if($sortField === 'size' || $sortField === 'formatted_size')
+                            <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            @endif
+                        </th>
+
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
                             wire:click="sortBy('created_at')">
@@ -104,6 +114,7 @@
                             <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                             @endif
                         </th>
+
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
                             wire:click="sortBy('user_id')">
@@ -161,6 +172,9 @@
                             @endphp
                             <flux:badge color="{{ $mimeColor }}" size="sm">{{ $shortMime }}</flux:badge>
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-amber-500 dark:text-amber-400">
+                            {{ $file->folder ?? 'Root' }}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {{ $file->formatted_size }}
                         </td>
@@ -216,13 +230,9 @@
                         $uploadProgress }}%</flux:text>
                         @endif
 
-                        @if($uploadError)
-                        <flux:callout variant="danger" icon="x-circle" heading="{{ $uploadError }}" />
-                        @endif
-
-                        @error('file')
+                        {{-- @error('file')
                         <flux:callout variant="danger" icon="x-circle" heading="{{ $message }}" />
-                        @enderror
+                        @enderror --}}
 
                         <div class="flex gap-2">
                             <flux:spacer />

@@ -108,7 +108,7 @@ class FileManager extends Component
             $existingFile = File::where('hash', $hash)->first();
             if ($existingFile) {
                 Storage::delete($path); // Clean up temp file
-                throw new Exception('A file with the same content already exists');
+                throw new Exception('A file with the same properties already exists');
             }
 
             // Upload to Telegram
@@ -135,7 +135,7 @@ class FileManager extends Component
                 'size' => $this->file->getSize(),
                 'mime_type' => $this->file->getMimeType(),
                 'hash' => $hash,
-                'folder' => $this->folder,
+                'folder' => $this->folder ?? 'Root',
                 'message_id' => $responseData['message_id'],
                 'user_id' => Auth::user()->id,
                 'metadata' => [
@@ -254,7 +254,7 @@ class FileManager extends Component
         }
 
         $this->selectedFiles = [];
-        $this->modal('delete-file')->close();
+        $this->reset('selectedFiles');
         session()->flash('message', 'Selected files deleted successfully.');
     }
 
