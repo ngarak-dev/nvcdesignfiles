@@ -4,6 +4,7 @@ use App\Livewire\FileManager;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Appearance;
+use App\Livewire\UserManagemet;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -13,6 +14,10 @@ Route::get('/', function () {
 // Route::view('dashboard', 'dashboard');
 Route::get('/dashboard', FileManager::class)->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/user-management', UserManagemet::class)->name('users.management');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
