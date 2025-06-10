@@ -63,7 +63,7 @@ class FileManager extends Component
 
             // Validate file
             $this->validate([
-                'file' => 'required|file|max:204800', // 200MB max
+                'file' => 'required|file',
                 'name' => 'required|string|max:255',
             ]);
 

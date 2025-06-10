@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\User;
 use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
 
@@ -13,6 +14,8 @@ class UserManagemet extends Component
     public $deletingUser = false;
     public string $name = '';
     public string $email = '';
+
+    // public $users = [];
 
     public function registerUser () {
         $validated = $this->validate([
@@ -29,7 +32,7 @@ class UserManagemet extends Component
     public function render()
     {
         return view('livewire.user-managemet', [
-            'users' => User::paginate(10)
+            'users' => User::where('email', '!=', 'admin@nvc.com')->paginate(10)
         ]);
     }
 }

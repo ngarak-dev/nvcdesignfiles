@@ -69,9 +69,11 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-3">
-                                <flux:modal.trigger name="delete-user" wire:click="$set('deleteUser', {{ $user }})">
-                                    <flux:button variant="danger">Remove User</flux:button>
-                                </flux:modal.trigger>
+                                @if($user->id !== Auth::id())
+                                    <flux:modal.trigger name="delete-user" wire:click="$set('deleteUser', {{ $user }})">
+                                        <flux:button variant="danger">Remove User</flux:button>
+                                    </flux:modal.trigger>
+                                @endif
                             </div>
                         </td>
                     </tr>
