@@ -6,12 +6,16 @@ use Livewire\Component;
 use Livewire\WithFileUploads;
 use App\Models\File;
 use App\Services\TelegramService;
+use App\Jobs\UploadFileToTelegram;
+use App\Jobs\DownloadFileFromTelegram;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Illuminate\Support\Facades\Config;
+use App\Notifications\FileStatusNotification;
 
 class FileManager extends Component
 {
@@ -30,6 +34,7 @@ class FileManager extends Component
     public $uploadError = null;
     public $deleteFile = null;
     public $deletingFile = false;
+    public $downloadStatus = [];
 
     protected $listeners = ['refreshFiles' => '$refresh'];
 
@@ -53,48 +58,35 @@ class FileManager extends Component
 
     public function sendToTelegram()
     {
-        $path = null;
-        $fullPath = null;
-
         try {
             if (!$this->file) {
                 throw new Exception('No file selected');
             }
 
+            $maxSize = Config::get('notify.telegram_max_file_size', 52428800); // 50MB default
+            if ($this->file->getSize() > $maxSize) {
+                throw new Exception('File exceeds Telegram upload limit of 50MB. Please upload a smaller file.');
+            }
+
             // Validate file
             $this->validate([
-                'file' => 'required|file',
+                'file' => 'required|file|max:' . intval($maxSize / 1024) . '|mimes:jpg,jpeg,png,gif,pdf,zip,rar,ai,psd,svg,mp4,mp3',
                 'name' => 'required|string|max:255',
             ]);
 
             // Generate unique temporary filename
             $tempFilename = Str::uuid() . '_' . $this->file->getClientOriginalName();
 
-            // Store file temporarily with detailed error handling
-            try {
-                $path = $this->file->storeAs('temp', $tempFilename);
-                if (!$path) {
-                    throw new Exception('Failed to store file in temporary location');
-                }
-            } catch (Exception $e) {
-                Log::error('File storage error', [
-                    'error' => $e->getMessage(),
-                    'file' => $tempFilename,
-                    'original_name' => $this->file->getClientOriginalName(),
-                    'size' => $this->file->getSize()
-                ]);
-                throw new Exception('Failed to store file: ' . $e->getMessage());
+            // Store file temporarily
+            $path = $this->file->storeAs('temp', $tempFilename);
+            if (!$path) {
+                throw new Exception('Failed to store file in temporary location');
             }
 
             $this->uploadProgress = 30;
 
-            // Get the full path using Storage facade
+            // Get the full path
             $fullPath = Storage::path($path);
-
-            // Verify file exists and is readable
-            if (!Storage::exists($path)) {
-                throw new Exception('Temporary file not found after storage');
-            }
 
             // Calculate file hash
             $hash = hash_file('sha256', $fullPath);
@@ -107,63 +99,50 @@ class FileManager extends Component
             // Check for duplicate
             $existingFile = File::where('hash', $hash)->first();
             if ($existingFile) {
-                Storage::delete($path); // Clean up temp file
+                Storage::delete($path);
                 throw new Exception('A file with the same properties already exists');
             }
 
-            // Upload to Telegram
-            $responseData = $this->telegramService->upload(
+            // Dispatch upload job
+            UploadFileToTelegram::dispatch(
                 $fullPath,
                 $this->file->getClientOriginalName(),
                 $this->name,
+                Auth::id(),
+                $this->folder
             );
 
-            // Log::info('Telegram response', ['response' => $responseData]);
-            $this->uploadProgress = 70;
-
-            if (!$responseData) {
-                throw new Exception('Failed to upload file to Telegram');
-            }
-
-            $this->uploadProgress = 80;
-
-            // Create file record
-            File::create([
-                'name' => $this->name,
-                'file_id' => $responseData['document']['file_id'],
-                'file_unique_id' => $responseData['document']['file_unique_id'],
-                'size' => $this->file->getSize(),
-                'mime_type' => $this->file->getMimeType(),
-                'hash' => $hash,
-                'folder' => $this->folder ?? 'Root',
-                'message_id' => $responseData['message_id'],
-                'user_id' => Auth::user()->id,
-                'metadata' => [
-                    'caption' => $this->name,
-                    'original_name' => $this->file->getClientOriginalName(),
-                ],
-            ]);
+            // Notify user upload started
+            Auth::user()->notify(new FileStatusNotification(
+                'File upload started',
+                null,
+                $this->file->getClientOriginalName(),
+                'uploading'
+            ));
 
             $this->uploadProgress = 100;
 
-            // Clean up temp file
-            Storage::delete($path);
-
             $this->reset(['file', 'name']);
-            session()->flash('message', 'File uploaded successfully');
+            session()->flash('message', 'File upload started. You will be notified when it\'s complete.');
             $this->modal('upload-file')->close();
-        }
-        catch (Exception $e) {
+        } catch (Exception $e) {
             Log::error('File upload error', [
                 'error' => $e->getMessage(),
                 'file' => $this->file ? $this->file->getClientOriginalName() : 'No file',
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Clean up temp file if it exists
-            if ($path && Storage::exists($path)) {
+            if (isset($path) && Storage::exists($path)) {
                 Storage::delete($path);
             }
+
+            // Notify user upload failed
+            Auth::user()->notify(new FileStatusNotification(
+                'File upload failed: ' . $e->getMessage(),
+                null,
+                $this->file ? $this->file->getClientOriginalName() : 'No file',
+                'failed'
+            ));
 
             $this->uploadError = 'Failed to upload file: ' . $e->getMessage();
             session()->flash('error', $this->uploadError);
@@ -175,25 +154,27 @@ class FileManager extends Component
     {
         try {
             $file = File::findOrFail($id);
-
-            $telegram = new TelegramService();
-            $downloadUrl = $telegram->getDownloadUrl($file->file_id);
-
-            if (!$downloadUrl) {
-                throw new Exception('Failed to generate download URL');
+            if ($file->user_id !== Auth::id()) {
+                abort(403, 'Unauthorized');
             }
 
-            // Log download
-            Log::info('File downloaded', [
-                'file_id' => $file->id,
-                'user_id' => Auth::id(),
-                'downloaded_at' => now()->toIso8601String()
-            ]);
+            // Check if file is already downloaded and not expired
+            if (
+                isset($file->metadata['temp_path']) &&
+                isset($file->metadata['download_expires_at']) &&
+                now()->lt($file->metadata['download_expires_at'])
+            ) {
+                return response()->download($file->metadata['temp_path'], $file->name);
+            }
 
-            return redirect()->to($downloadUrl);
+            // Start download process
+            DownloadFileFromTelegram::dispatch($file->id, Auth::id());
+
+            $this->downloadStatus[$id] = 'preparing';
+            session()->flash('message', 'File download started. You will be notified when it is ready.');
         } catch (Exception $e) {
             Log::error('File download error: ' . $e->getMessage());
-            session()->flash('error', 'Failed to download file. Please try again.');
+            session()->flash('error', 'Failed to start file download. Please try again.');
         }
     }
 
@@ -201,6 +182,9 @@ class FileManager extends Component
     {
         $this->deletingFile = true;
         $file = File::findOrFail($id);
+        if ($file->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
         $this->telegramService->deleteFile($file->message_id, $file->file_id);
         Log::info('File deleted successfully : ' . $file->name);
         $file->delete();
@@ -269,6 +253,7 @@ class FileManager extends Component
         return view('livewire.file-manager', [
             'files' => $query->paginate(10),
             'folders' => $this->getFolders(),
+            'downloadStatus' => $this->downloadStatus,
         ]);
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\AvailableFilesForDownload;
 use App\Livewire\FileManager;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\Password;
@@ -17,6 +18,7 @@ Route::get('/dashboard', FileManager::class)->middleware(['auth', 'verified'])
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/user-management', UserManagemet::class)->name('users.management');
+    Route::get('/files-management', AvailableFilesForDownload::class)->name('files.management');
 });
 
 Route::middleware(['auth'])->group(function () {

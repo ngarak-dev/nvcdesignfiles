@@ -1,16 +1,12 @@
 <div class="max-w-8xl mx-auto p-6">
-    @if (session()->has('message'))
-    <flux:callout variant="success" class="mb-4" icon="check-circle" heading="{{ session('message') }}" />
-    @endif
 
-    @if (session()->has('error'))
-    <flux:callout variant="danger" class="mb-4" icon="x-circle" heading="{{ session('error') }}" />
-    @endif
+    @include('partials.callouts')
 
-    <flux:heading size="lg">User Management</flux:heading>
-
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+    <div class="rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-4">
+                <flux:heading size="lg">User Management</flux:heading>
+            </div>
             <div class="flex items-center gap-2">
                 <flux:modal.trigger name="add-user">
                     <flux:button variant="primary" icon="user-plus">
@@ -22,7 +18,7 @@
 
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-700">
+                <thead class="">
                     <tr>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
@@ -52,9 +48,9 @@
                             Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($users as $user)
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
+                    <tr class="transition-colors duration-200 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-900">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <flux:icon.user variant="mini" class="mr-4"></flux:icon.user>

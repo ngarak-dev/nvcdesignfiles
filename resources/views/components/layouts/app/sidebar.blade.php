@@ -18,6 +18,7 @@
 
                 <flux:navlist.group :heading="__('Manage')" class="grid">
                     <flux:navlist.item icon="users" :href="route('users.management')" :current="request()->routeIs('users.management')" wire:navigate>{{ __('Users') }}</flux:navlist.item>
+                    <flux:navlist.item icon="arrow-down-tray" :href="route('files.management')" :current="request()->routeIs('files.management')" wire:navigate>{{ __('Available Files') }}</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 
@@ -128,5 +129,7 @@
         {{ $slot }}
 
         @fluxScripts
+
+        <x-toaster-hub /> {{-- Toaster --}}
     </body>
 </html>
