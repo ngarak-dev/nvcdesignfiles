@@ -38,7 +38,7 @@ class DownloadFileFromTelegram implements ShouldQueue
             $downloadUrl = $telegramService->getDownloadUrl($file->file_id);
 
             if (!$downloadUrl) {
-                session()->flash('error', 'Failed to generate download URL');
+                // session()->flash('error', 'Failed to generate download URL');
                 throw new \Exception('Failed to generate download URL');
             }
 
@@ -61,12 +61,13 @@ class DownloadFileFromTelegram implements ShouldQueue
                 // Notify user file is already ready
                 $user = User::find($this->userId);
                 if ($user) {
-                    $user->notify(new FileStatusNotification(
-                        'File is already ready for download',
+                    FileStatusNotification::upsert(
+                        $user,
                         $file->id,
                         $file->name,
-                        'ready'
-                    ));
+                        'ready',
+                        'File is ready for download.'
+                    );
                 }
                 return;
             }
@@ -74,13 +75,13 @@ class DownloadFileFromTelegram implements ShouldQueue
             // Download the file
             $fileContent = file_get_contents($downloadUrl);
             if ($fileContent === false) {
-                session()->flash('error', 'Failed to download file from Telegram');
+                // session()->flash('error', 'Failed to download file from Telegram');
                 throw new \Exception('Failed to download file from Telegram');
             }
 
             // Save the file
             if (file_put_contents($tempPath, $fileContent) === false) {
-                session()->flash('error', 'Failed to save downloaded file');
+                // session()->flash('error', 'Failed to save downloaded file');
                 throw new \Exception('Failed to save downloaded file');
             }
 
@@ -99,12 +100,13 @@ class DownloadFileFromTelegram implements ShouldQueue
             // Notify user download ready
             $user = User::find($this->userId);
             if ($user) {
-                $user->notify(new FileStatusNotification(
-                    'File is ready for download',
+                FileStatusNotification::upsert(
+                    $user,
                     $file->id,
                     $file->name,
-                    'ready'
-                ));
+                    'ready',
+                    'File is ready for download.'
+                );
             }
 
             // Broadcast event for real-time updates
@@ -119,15 +121,16 @@ class DownloadFileFromTelegram implements ShouldQueue
             // Notify user download failed
             $user = User::find($this->userId);
             if ($user) {
-                $user->notify(new FileStatusNotification(
-                    'File download failed: ' . $e->getMessage(),
+                FileStatusNotification::upsert(
+                    $user,
                     $this->fileId,
                     $file->name ?? 'Unknown',
-                    'failed'
-                ));
+                    'failed',
+                    'File download failed: ' . $e->getMessage()
+                );
             }
 
-            session()->flash('error', 'Failed to download file from Telegram');
+            // session()->flash('error', 'Failed to download file from Telegram');
 
             throw $e;
         }

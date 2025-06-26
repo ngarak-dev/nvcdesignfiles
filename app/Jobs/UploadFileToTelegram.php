@@ -12,6 +12,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Masmerise\Toaster\Toaster;
+use App\Notifications\FileStatusNotification;
+use App\Models\User;
+
 class UploadFileToTelegram implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -33,7 +36,19 @@ class UploadFileToTelegram implements ShouldQueue
 
     public function handle(TelegramService $telegramService)
     {
+        $user = User::find($this->userId);
         try {
+            // Notify user upload to Telegram started
+            if ($user) {
+                FileStatusNotification::upsert(
+                    $user,
+                    null,
+                    $this->fileName,
+                    'telegram_uploading',
+                    'Uploading to Telegram...'
+                );
+            }
+
             $responseData = $telegramService->upload(
                 $this->filePath,
                 $this->fileName,
@@ -41,7 +56,6 @@ class UploadFileToTelegram implements ShouldQueue
             );
 
             if (!$responseData) {
-                session()->flash('error', 'Failed to upload file to Telegram');
                 throw new \Exception('Failed to upload file to Telegram');
             }
 
@@ -64,17 +78,34 @@ class UploadFileToTelegram implements ShouldQueue
 
             // Clean up the temporary file
             Storage::delete($this->filePath);
-            // session()->flash('success', 'File uploaded successfully');
-            Toaster::success('File uploaded successfully');
-        }
-        catch (\Exception $e) {
+
+            // Notify user upload complete
+            if ($user) {
+                FileStatusNotification::upsert(
+                    $user,
+                    null,
+                    $this->fileName,
+                    'ready',
+                    'File uploaded successfully.'
+                );
+            }
+        } catch (\Exception $e) {
+            // Notify user upload failed
+            if ($user) {
+                FileStatusNotification::upsert(
+                    $user,
+                    null,
+                    $this->fileName,
+                    'failed',
+                    'File upload to Telegram failed: ' . $e->getMessage()
+                );
+            }
+
             Log::error('Telegram upload job failed', [
                 'error' => $e->getMessage(),
                 'file' => $this->fileName,
                 'trace' => $e->getTraceAsString()
             ]);
-
-            session()->flash('error', 'File upload to Telegram failed. Please try again.');
 
             // Clean up the temporary file in case of error
             if (Storage::exists($this->filePath)) {

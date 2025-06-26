@@ -49,4 +49,25 @@ class FileStatusNotification extends Notification implements ShouldQueue
     {
         return new BroadcastMessage($this->toArray($notifiable));
     }
+
+    public static function upsert($user, $file_id, $file_name, $status, $message)
+    {
+        $existing = $user->notifications()
+            ->where('type', self::class)
+            ->where('data->file_id', $file_id)
+            ->whereNull('read_at')
+            ->first();
+        if ($existing) {
+            $existing->update([
+                'data' => [
+                    'message' => $message,
+                    'file_id' => $file_id,
+                    'file_name' => $file_name,
+                    'status' => $status,
+                ]
+            ]);
+        } else {
+            $user->notify(new self($message, $file_id, $file_name, $status));
+        }
+    }
 }

@@ -113,17 +113,17 @@ class FileManager extends Component
             );
 
             // Notify user upload started
-            Auth::user()->notify(new FileStatusNotification(
-                'File upload started',
+            \App\Notifications\FileStatusNotification::upsert(
+                Auth::user(),
                 null,
                 $this->file->getClientOriginalName(),
-                'uploading'
-            ));
+                'uploading',
+                'File upload started'
+            );
 
             $this->uploadProgress = 100;
 
             $this->reset(['file', 'name']);
-            session()->flash('message', 'File upload started. You will be notified when it\'s complete.');
             $this->modal('upload-file')->close();
         } catch (Exception $e) {
             Log::error('File upload error', [
@@ -137,15 +137,15 @@ class FileManager extends Component
             }
 
             // Notify user upload failed
-            Auth::user()->notify(new FileStatusNotification(
-                'File upload failed: ' . $e->getMessage(),
+            \App\Notifications\FileStatusNotification::upsert(
+                Auth::user(),
                 null,
                 $this->file ? $this->file->getClientOriginalName() : 'No file',
-                'failed'
-            ));
+                'failed',
+                'File upload failed: ' . $e->getMessage()
+            );
 
             $this->uploadError = 'Failed to upload file: ' . $e->getMessage();
-            session()->flash('error', $this->uploadError);
             $this->modal('upload-file')->close();
         }
     }
@@ -171,10 +171,8 @@ class FileManager extends Component
             DownloadFileFromTelegram::dispatch($file->id, Auth::id());
 
             $this->downloadStatus[$id] = 'preparing';
-            session()->flash('message', 'File download started. You will be notified when it is ready.');
         } catch (Exception $e) {
             Log::error('File download error: ' . $e->getMessage());
-            session()->flash('error', 'Failed to start file download. Please try again.');
         }
     }
 
@@ -190,8 +188,6 @@ class FileManager extends Component
         $file->delete();
 
         $this->modal('delete-file')->close();
-        session()->flash('message', 'File deleted successfully.');
-        $this->deletingFile = false;
     }
 
     public function createFolder()
@@ -205,7 +201,6 @@ class FileManager extends Component
         Storage::put($folderPath . '/.folder', '');
 
         $this->reset('newFolderName');
-        session()->flash('message', 'Folder created successfully.');
         $this->modal('new-folder')->close();
     }
 
@@ -239,7 +234,6 @@ class FileManager extends Component
 
         $this->selectedFiles = [];
         $this->reset('selectedFiles');
-        session()->flash('message', 'Selected files deleted successfully.');
     }
 
     public function render()

@@ -3,22 +3,13 @@
 namespace App\Livewire;
 
 use Livewire\Component;
-use App\Models\AvailableFiles;
 use Illuminate\Support\Facades\Auth;
 
 class NotifyUser extends Component
 {
     public $notifications = [];
     public $hasUnreadNotifications = false;
-
     public $showNotifications = true;
-
-    protected $listeners = [
-        'fileUploadStarted' => 'handleFileUploadStarted',
-        'fileUploadCompleted' => 'handleFileUploadCompleted',
-        'fileDownloadReady' => 'handleFileDownloadReady',
-        'fileDownloadExpired' => 'handleFileDownloadExpired',
-    ];
 
     public function mount()
     {
@@ -27,18 +18,19 @@ class NotifyUser extends Component
 
     public function loadNotifications()
     {
-        $this->notifications = AvailableFiles::with('file')
-            // ->where('user_id', Auth::id())
-            // ->where('is_read', false)
-            ->where('expires_at', '>', now())
+        logger('NotifyUser polling at ' . now());
+        
+        $this->notifications = Auth::user()->unreadNotifications()
+            ->where('type', 'App\\Notifications\\FileStatusNotification')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($file) {
+            ->map(function ($notification) {
                 return [
-                    'id' => $file->id,
-                    'file_name' => $file->file->name,
-                    'status' => $file->isReady() ? 'ready' : 'preparing',
-                    'expires_at' => $file->expires_at->diffForHumans(),
+                    'id' => $notification->id,
+                    'file_name' => $notification->data['file_name'],
+                    'status' => $notification->data['status'],
+                    'message' => $notification->data['message'],
+                    'created_at' => $notification->created_at->diffForHumans(),
                 ];
             })
             ->toArray();
@@ -46,38 +38,15 @@ class NotifyUser extends Component
         $this->hasUnreadNotifications = count($this->notifications) > 0;
     }
 
-    public function handleFileUploadStarted($fileId)
-    {
-        $this->notifications[] = [
-            'id' => $fileId,
-            'file_name' => 'File upload started',
-            'status' => 'preparing',
-            'expires_at' => null,
-        ];
-        $this->hasUnreadNotifications = true;
-    }
-
-    public function handleFileUploadCompleted($fileId)
-    {
-        $this->loadNotifications();
-    }
-
-    public function handleFileDownloadReady($fileId)
-    {
-        $this->loadNotifications();
-    }
-
-    public function handleFileDownloadExpired($fileId)
-    {
-        $this->loadNotifications();
-    }
-
     public function markAsRead($notificationId)
     {
-        AvailableFiles::where('id', $notificationId)
-            ->where('user_id', Auth::id())
-            ->update(['is_read' => true]);
+        Auth::user()->unreadNotifications()->find($notificationId)?->markAsRead();
+        $this->loadNotifications();
+    }
 
+    public function markAllAsRead()
+    {
+        Auth::user()->unreadNotifications->markAsRead();
         $this->loadNotifications();
     }
 

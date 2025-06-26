@@ -1,6 +1,5 @@
 <x-layouts.app.sidebar :title="$title ?? null">
     <flux:main>
-        {{-- <x:notify-messages /> --}}
         <livewire:notify-user />
         {{ $slot }}
     </flux:main>
